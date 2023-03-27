@@ -1,0 +1,158 @@
+﻿<Controls:MetroWindow x:Class="BilderImport.MainWindow"
+                      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+                      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                      xmlns:local="clr-namespace:BilderImport"
+                      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                      Title="Bild Importer"
+                      Width="1250"
+                      Height="650"
+                      Cursor="{Binding Cursor}"
+                      FontSize="18"
+                      mc:Ignorable="d">
+  <Grid Margin="5" ShowGridLines="True">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="400" />
+      <ColumnDefinition />
+    </Grid.ColumnDefinitions>
+    <!--  listview which show images and allow multiselect  -->
+    <ListView Grid.Column="1" />
+    <Grid ShowGridLines="True">
+      <Grid.RowDefinitions>
+        <RowDefinition />
+        <RowDefinition />
+        <RowDefinition />
+      </Grid.RowDefinitions>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="100" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Label VerticalAlignment="Center" Content="Quelle" />
+        <ComboBox Grid.Row="1"
+                  Height="35"
+                  FontSize="18"
+                  Margin="0,0,50,0"
+                  VerticalAlignment="Top"
+                  ItemsSource="{Binding ExternalDrives}"
+                  SelectedItem="{Binding SelectedExternalDrive}" />
+      </Grid>
+      <Grid Grid.Row="1" ShowGridLines="False">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="100" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Label VerticalAlignment="Center" Content="Ziel" />
+        <TextBox Grid.Row="1"
+                 Height="35"
+                 FontSize="16"
+                 Margin="0,0,60,0"
+                 VerticalAlignment="Top"
+                 Text="{Binding Source={x:Static local:Settings.Default}, Path=TargetFolder, Mode=TwoWay}" />
+        <Button Grid.Row="1"
+                Width="40"
+                Height="40"
+                Margin="0,0,10,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Command="{Binding SetTargetFolderCommand}">
+          <Button.ToolTip>
+            <Label FontSize="18" Content="Ordner aussuchen" />
+          </Button.ToolTip>
+          <Image Source="/Images/folder_gear.png" />
+        </Button>
+      </Grid>
+      <Button Grid.Row="2"
+              Width="250"
+              Margin="15"
+              Command="{Binding StartImageSearchCommand}">
+        <StackPanel Orientation="Vertical">
+          <Image Height="80" Source="/Images/find_next.png" />
+          <Label Content="Suche neue Bilder" FontSize="18" />
+        </StackPanel>
+      </Button>
+    </Grid>
+    <Grid Grid.Column="1" ShowGridLines="True">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="1*" />
+        <RowDefinition Height="4*" />
+        <RowDefinition Height="1*" />
+      </Grid.RowDefinitions>
+      <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+        <Button Margin="10" Command="{Binding SelectAllCommand}">
+          <StackPanel Orientation="Vertical">
+            <Image Height="20" Source="/Images/checks.png" />
+            <Label Content="Alle auswählen" FontSize="18" />
+          </StackPanel>
+        </Button>
+        <Button Margin="10" Command="{Binding DeselectAllCommand}">
+          <StackPanel Orientation="Vertical">
+            <Image Height="20" Source="/Images/checkbox_unchecked.png" />
+            <Label Content="Alle abwählen" FontSize="18" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <ListView Grid.Row="1"
+                Margin="10,20,0,0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                ItemsSource="{Binding ImagesToCopy}"
+                SelectionMode="Extended">
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="IsSelected" Value="{Binding IsSelected}" />
+          </Style>
+        </ListView.ItemContainerStyle>
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid HorizontalAlignment="Stretch" Columns="3" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ListView.ItemTemplate>
+          <DataTemplate>
+            <StackPanel HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        Orientation="Vertical">
+              <CheckBox IsChecked="{Binding IsSelected}" />
+              <Image Width="200"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Top"
+                     Source="{Binding BitmapImage}"
+                     Stretch="UniformToFill" />
+              <TextBlock HorizontalAlignment="Stretch"
+                         VerticalAlignment="Bottom"
+                         Text="{Binding Name}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+
+      <StackPanel Grid.Row="2"
+                  Margin="10,20,0,0"
+                  HorizontalAlignment="Center"
+                  Orientation="Vertical">
+        <Label VerticalAlignment="Center" Content="Neuer Ordnername" />
+        <TextBox Width="300"
+                 Height="32"
+                 Margin="0,10,50,0"
+                 HorizontalAlignment="Left"
+                 FontSize="16"
+                 VerticalAlignment="Top"
+                 Text="{Binding FolderName, UpdateSourceTrigger=PropertyChanged}" />
+      </StackPanel>
+
+      <Button Grid.Row="2"
+              Width="200"
+              Margin="0,6,30,0"
+              HorizontalAlignment="Right"
+              Command="{Binding ImportImagesCommand}">
+        <StackPanel Orientation="Horizontal">
+          <Label Content="Importieren" FontSize="18" />
+          <Image Source="/Images/import2.png" />
+        </StackPanel>
+      </Button>
+
+    </Grid>
+  </Grid>
+</Controls:MetroWindow>
