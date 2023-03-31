@@ -13,12 +13,6 @@ namespace BilderImport
   {
     public ImageData(string path)
     {
-      //BitmapImage = new BitmapImage();
-      //BitmapImage.BeginInit();
-      //BitmapImage.UriSource = new Uri(path);
-      //BitmapImage.DecodePixelWidth = 200;
-      //BitmapImage.EndInit();
-
       BitmapImage = LoadImageFile(path);
 
       Name = System.IO.Path.GetFileName(path);

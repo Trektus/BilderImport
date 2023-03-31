@@ -5,6 +5,8 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 
 namespace BilderImport
@@ -12,6 +14,18 @@ namespace BilderImport
   internal class MainWindowViewModel : ViewModelBase
   {
     #region Public Properties
+
+    public Cursor Cursor
+    {
+      get
+      {
+        return _cursor;
+      }
+      set
+      {
+        SetProperty(ref _cursor, value);
+      }
+    }
 
     public DelegateCommand DeselectAllCommand
     {
@@ -41,6 +55,20 @@ namespace BilderImport
       }
     }
 
+    public string FolderName
+    {
+      get
+      {
+        return _folderName;
+      }
+      set
+      {
+        var folderName = string.Join("_", value.Split(Path.GetInvalidFileNameChars()));
+
+        SetProperty(ref _folderName, folderName);
+      }
+    }
+
     public ObservableCollection<ImageData> ImagesToCopy
     {
       get
@@ -53,28 +81,6 @@ namespace BilderImport
       }
     }
 
-
-    #region FolderName
-
-    private string _folderName;
-
-    public string FolderName
-    {
-      get
-      {
-        return _folderName;
-      }
-      set
-      {
-        var folderName = string.Join("_", value.Split(Path.GetInvalidFileNameChars()));
-          
-        SetProperty(ref _folderName, folderName);
-      }
-    }
-
-    #endregion
-
-
     public DelegateCommand ImportImagesCommand
     {
       get
@@ -82,32 +88,50 @@ namespace BilderImport
         return _importImagesCommand ?? (_importImagesCommand = new DelegateCommand(
           () =>
           {
-            Cursor = Cursors.Wait;
-            if (string.IsNullOrEmpty(FolderName))
-              FolderName = DateTime.Now.ToShortDateString();
-            var imagesToRemove = new List<ImageData>();
-            foreach (var imageData in ImagesToCopy.Where(image => image.IsSelected == true))
+            try
             {
-              var targetFilePath = Path.Combine(Settings.Default.TargetFolder, FolderName, Path.GetFileName(imageData.Path));
-              var targetDirectory = Path.GetDirectoryName(targetFilePath);
-              if (!Directory.Exists(targetDirectory))
+              Cursor = Cursors.Wait;
+              StatusMessage = string.Empty;
+              if (string.IsNullOrEmpty(FolderName))
+                FolderName = DateTime.Now.ToShortDateString();
+              var imagesToRemove = new List<ImageData>();
+              foreach (var imageData in ImagesToCopy.Where(image => image.IsSelected == true))
               {
-                Directory.CreateDirectory(targetDirectory);
-              }
-              else
-              {
-                if (File.Exists(targetFilePath))
+                var targetFilePath = Path.Combine(Settings.Default.TargetFolder, FolderName, Path.GetFileName(imageData.Path));
+                var targetDirectory = Path.GetDirectoryName(targetFilePath);
+                if (!Directory.Exists(targetDirectory))
                 {
-                  File.Move(targetFilePath, Path.Combine(Path.GetDirectoryName(targetFilePath),
-                    Path.GetFileNameWithoutExtension(targetFilePath) + "_2" + Path.GetExtension(targetFilePath)));
+                  Directory.CreateDirectory(targetDirectory);
                 }
+                else
+                {
+                  if (File.Exists(targetFilePath))
+                  {
+                    int i = 0;
+                    var fileNameNew = "";
+                    do
+                    {
+                      i++;
+                      fileNameNew = Path.Combine(Path.GetDirectoryName(targetFilePath),
+                        Path.GetFileNameWithoutExtension(targetFilePath) + $"_{i}" + Path.GetExtension(targetFilePath));
+                    }
+                    while (File.Exists(fileNameNew));
+                    File.Move(targetFilePath, fileNameNew);
+                  }
+                }
+                File.Copy(imageData.Path, targetFilePath);
+                imagesToRemove.Add(imageData);
               }
-              File.Copy(imageData.Path, targetFilePath);
-              imagesToRemove.Add(imageData);
+              foreach (var image in imagesToRemove)
+              {
+                ImagesToCopy.Remove(image);
+              }
+              if (imagesToRemove.Count > 0)
+                StatusMessage = imagesToRemove.Count + " " + (imagesToRemove.Count == 1 ? "Datei" : "Dateien") + " importiert.";
             }
-            foreach(var image in imagesToRemove) 
+            catch (Exception ex)
             {
-              ImagesToCopy.Remove(image);
+              StatusMessage = "Fehler: " + ex.Message;
             }
             Cursor = Cursors.Arrow;
           }
@@ -115,25 +139,13 @@ namespace BilderImport
       }
     }
 
-
-    #region Cursor
-
-    private Cursor _cursor;
-
-    public Cursor Cursor
+    public bool IsStatusMessageVisible
     {
       get
       {
-        return _cursor;
-      }
-      set
-      {
-        SetProperty(ref _cursor, value);
+        return !string.IsNullOrEmpty(_statusMessage);
       }
     }
-
-    #endregion
-
 
     public DelegateCommand SelectAllCommand
     {
@@ -187,62 +199,113 @@ namespace BilderImport
       get
       {
         return _startImageSearchCommand ?? (_startImageSearchCommand = new DelegateCommand(
-          () =>
+          async () =>
           {
             Cursor = Cursors.Wait;
             // get the selected drive
             var drive = SelectedExternalDrive;
             if (drive != null)
             {
-              if (!Directory.Exists(Settings.Default.TargetFolder))
-                SetTargetFolderCommand.Execute();
-
-              // get the drive letter
-              var driveLetter = drive.Substring(drive.Length - 4, 2);
-
-              // get the files
-              var sourceFiles = Directory.GetFiles(driveLetter, "*.*", SearchOption.AllDirectories)
-                .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
-              var targetFiles = Directory.GetFiles(Settings.Default.TargetFolder, "*.*", SearchOption.AllDirectories)
-                .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
-
+              StatusMessage = "Suche neue Bilder";
               var filesToCopy = new List<string>();
+              var sourceFilesCount = 0;
+              var targetFilesCount = 0;
 
-              // check if the files already exists in the target path
-              foreach (var sourceFile in sourceFiles)
+              await Task.Run(() =>
               {
-                var fileName = Path.GetFileName(sourceFile);
-                var possibleTargetFiles = targetFiles.Where(targetFile => Path.GetFileName(targetFile).ToLower() == fileName.ToLower());
-                var copyTheFile = true;
-                if (possibleTargetFiles.Count() > 0)
+                try
                 {
-                  var fileInfoSource = new FileInfo(sourceFile);
-                  foreach (var possibleTargetFile in possibleTargetFiles)
+                  if (!Directory.Exists(Settings.Default.TargetFolder))
+                    SetTargetFolderCommand.Execute();
+
+                  // get the drive letter
+                  var driveLetter = drive.Substring(drive.Length - 4, 2);
+
+                  // get the files
+                  var sourceFiles = Directory.GetFiles(driveLetter, "*.*", SearchOption.AllDirectories)
+                    .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
+                  var targetFiles = Directory.GetFiles(Settings.Default.TargetFolder, "*.*", SearchOption.AllDirectories)
+                    .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
+
+                  sourceFilesCount = sourceFiles.Count();
+                  targetFilesCount = targetFiles.Count();
+
+                  // check if the files already exists in the target path
+                  foreach (var sourceFile in sourceFiles)
                   {
-                    var fileInfoTarget = new FileInfo(possibleTargetFile);
-                    if (fileInfoSource.Length == fileInfoTarget.Length
-                      && fileInfoSource.LastWriteTimeUtc == fileInfoTarget.LastWriteTimeUtc)
+                    var fileName = Path.GetFileName(sourceFile);
+                    var possibleTargetFiles = targetFiles.Where(targetFile => Path.GetFileName(targetFile).ToLower() == fileName.ToLower());
+                    var addTheFile = true;
+                    if (possibleTargetFiles.Count() > 0)
                     {
-                      copyTheFile = false;
-                      break;
+                      var fileInfoSource = new FileInfo(sourceFile);
+                      foreach (var possibleTargetFile in possibleTargetFiles)
+                      {
+                        var fileInfoTarget = new FileInfo(possibleTargetFile);
+                        if (fileInfoSource.Length == fileInfoTarget.Length
+                          && fileInfoSource.LastWriteTimeUtc == fileInfoTarget.LastWriteTimeUtc)
+                        {
+                          addTheFile = false;
+                          break;
+                        }
+                      }
+                    }
+                    if (addTheFile)
+                    {
+                      filesToCopy.Add(sourceFile);
                     }
                   }
                 }
-                if (copyTheFile)
+                catch (Exception ex)
                 {
-                  filesToCopy.Add(sourceFile);
+                  StatusMessage = "Fehler: " + ex.Message;
                 }
-              }
+              });
 
               ImagesToCopy.Clear();
               foreach (var file in filesToCopy)
               {
-                ImagesToCopy.Add(new ImageData(file));
+                try
+                {
+                  ImagesToCopy.Add(new ImageData(file));
+                }
+                catch (Exception ex)
+                {
+                  StatusMessage = "Fehler: " + ex.Message;
+                }
+              }
+
+              if (filesToCopy.Count == 0)
+              {
+                StatusMessage = $"Keine neuen Bilder gefunden. Auf Stick: {sourceFilesCount}, auf Festplatte: {targetFilesCount}";
+              }
+              else
+              {
+                StatusMessage = string.Empty;
               }
             }
+            else
+              StatusMessage = "Kein USB Stick / SD Karte angeschlossen.";
+
             Cursor = Cursors.Arrow;
           }
           ));
+      }
+    }
+
+    public string StatusMessage
+    {
+      get
+      {
+        return _statusMessage;
+      }
+      set
+      {
+        Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+          SetProperty(ref _statusMessage, value);
+          OnPropertyChanged(nameof(IsStatusMessageVisible));
+        });
       }
     }
 
@@ -305,14 +368,17 @@ namespace BilderImport
     #endregion Private Methods
 
     #region Private Fields
+    private Cursor _cursor;
     private DelegateCommand _DeselectAllCommand;
     private List<string> _externalDrives;
+    private string _folderName;
     private ObservableCollection<ImageData> _imagesToCopy = new ObservableCollection<ImageData>();
     private DelegateCommand _importImagesCommand;
     private DelegateCommand _selectAllCommand;
     private string _selectedExternalDrive;
     private DelegateCommand _setTargetFolderCommand;
     private DelegateCommand _startImageSearchCommand;
+    private string _statusMessage;
     #endregion Private Fields
   }
 }
