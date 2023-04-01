@@ -1,16 +1,43 @@
 ﻿using Prism.Mvvm;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net.Cache;
 using System.Windows.Media.Imaging;
 
 namespace BilderImport
 {
   public class ImageData : BindableBase
   {
+    #region Public Properties
+
+    public BitmapImage BitmapImage
+    {
+      get => _bitmapImage;
+      set
+      {
+        SetProperty(ref _bitmapImage, value);
+      }
+    }
+
+    public bool IsSelected
+    {
+      get
+      {
+        return _isSelected;
+      }
+      set
+      {
+        SetProperty(ref _isSelected, value);
+      }
+    }
+
+    public string Name { get; set; }
+
+    public string Path { get; set; }
+    #endregion Public Properties
+
+    #region Public Constructors
+
     public ImageData(string path)
     {
       BitmapImage = LoadImageFile(path);
@@ -20,7 +47,10 @@ namespace BilderImport
       IsSelected = true;
     }
 
-    private static string _orientationQuery = "System.Photo.Orientation";
+    #endregion Public Constructors
+
+    #region Public Methods
+
     public BitmapImage LoadImageFile(String path)
     {
       Rotation rotation = Rotation.Rotate0;
@@ -42,11 +72,13 @@ namespace BilderImport
                   rotation = Rotation.Rotate90;
                 }
                 break;
+
               case 3:
                 {
                   rotation = Rotation.Rotate180;
                 }
                 break;
+
               case 8:
                 {
                   rotation = Rotation.Rotate270;
@@ -60,6 +92,10 @@ namespace BilderImport
       BitmapImage _image = new BitmapImage();
       _image.BeginInit();
       _image.UriSource = new Uri(path);
+      _image.CacheOption = BitmapCacheOption.None;
+      _image.UriCachePolicy = new RequestCachePolicy(RequestCacheLevel.BypassCache);
+      _image.CacheOption = BitmapCacheOption.OnLoad;
+      _image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
       _image.DecodePixelWidth = 200;
       _image.Rotation = rotation;
       _image.EndInit();
@@ -68,30 +104,21 @@ namespace BilderImport
       return _image;
     }
 
+    #endregion Public Methods
 
-    #region IsSelected
+    #region Internal Methods
 
-    private bool _isSelected;
-
-    public bool IsSelected
+    internal void ReloadImage()
     {
-      get
-      {
-        return _isSelected;
-      }
-      set
-      {
-        SetProperty(ref _isSelected, value);
-      }
+      BitmapImage = LoadImageFile(Path);
     }
 
-    #endregion
+    #endregion Internal Methods
 
-
-    public string Name { get; set; }
-
-    public BitmapImage BitmapImage { get; set; }
-
-    public string Path { get; set; }
+    #region Private Fields
+    private static string _orientationQuery = "System.Photo.Orientation";
+    private BitmapImage _bitmapImage;
+    private bool _isSelected;
+    #endregion Private Fields
   }
 }

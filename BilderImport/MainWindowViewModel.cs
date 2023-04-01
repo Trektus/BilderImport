@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Management;
@@ -43,7 +44,7 @@ namespace BilderImport
       }
     }
 
-    public List<string> ExternalDrives
+    public List<DriveInfo> ExternalDrives
     {
       get
       {
@@ -147,6 +148,32 @@ namespace BilderImport
       }
     }
 
+    public DelegateCommand<ImageData> RotateLeftCommand
+    {
+      get
+      {
+        return _rotateLeftCommand ?? (_rotateLeftCommand = new DelegateCommand<ImageData>(
+          (parameter) =>
+          {
+            RotateImage(parameter, RotateFlipType.Rotate270FlipNone);
+          }
+          ));
+      }
+    }
+
+    public DelegateCommand<ImageData> RotateRightCommand
+    {
+      get
+      {
+        return _rotateRightCommand ?? (_rotateRightCommand = new DelegateCommand<ImageData>(
+          (parameter) =>
+          {
+            RotateImage(parameter, RotateFlipType.Rotate90FlipNone);
+          }
+          ));
+      }
+    }
+
     public DelegateCommand SelectAllCommand
     {
       get
@@ -163,7 +190,7 @@ namespace BilderImport
       }
     }
 
-    public string SelectedExternalDrive
+    public DriveInfo SelectedExternalDrive
     {
       get
       {
@@ -219,10 +246,10 @@ namespace BilderImport
                     SetTargetFolderCommand.Execute();
 
                   // get the drive letter
-                  var driveLetter = drive.Substring(drive.Length - 4, 2);
+                  var driveRootDirectory = drive.RootDirectory;
 
                   // get the files
-                  var sourceFiles = Directory.GetFiles(driveLetter, "*.*", SearchOption.AllDirectories)
+                  var sourceFiles = Directory.GetFiles(driveRootDirectory.FullName, "*.*", SearchOption.AllDirectories)
                     .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
                   var targetFiles = Directory.GetFiles(Settings.Default.TargetFolder, "*.*", SearchOption.AllDirectories)
                     .Where(s => s.ToLower().EndsWith(".png") || s.ToLower().EndsWith(".jpg") || s.ToLower().EndsWith(".tif"));
@@ -344,15 +371,25 @@ namespace BilderImport
       var drives = DriveInfo.GetDrives().Where(d => d.DriveType == System.IO.DriveType.Removable);
 
       // add the drives to the list
-      ExternalDrives = new List<string>();
+      ExternalDrives = new List<DriveInfo>();
       foreach (var drive in drives)
       {
-        ExternalDrives.Add(drive.VolumeLabel + $" ({drive.Name})");
+        ExternalDrives.Add(drive);
       }
       if (ExternalDrives.Count > 0)
       {
         SelectedExternalDrive = ExternalDrives.First();
       }
+    }
+
+    private void RotateImage(ImageData parameter, RotateFlipType rotateFlipType)
+    {
+      Cursor = Cursors.Wait;
+      var bitmap = new Bitmap(parameter.Path);
+      bitmap.RotateFlip(rotateFlipType);
+      bitmap.Save(parameter.Path);
+      parameter.ReloadImage();
+      Cursor = Cursors.Arrow;
     }
 
     // open a wpf select folder dialog and return the path
@@ -370,12 +407,14 @@ namespace BilderImport
     #region Private Fields
     private Cursor _cursor;
     private DelegateCommand _DeselectAllCommand;
-    private List<string> _externalDrives;
+    private List<DriveInfo> _externalDrives;
     private string _folderName;
     private ObservableCollection<ImageData> _imagesToCopy = new ObservableCollection<ImageData>();
     private DelegateCommand _importImagesCommand;
+    private DelegateCommand<ImageData> _rotateLeftCommand;
+    private DelegateCommand<ImageData> _rotateRightCommand;
     private DelegateCommand _selectAllCommand;
-    private string _selectedExternalDrive;
+    private DriveInfo _selectedExternalDrive;
     private DelegateCommand _setTargetFolderCommand;
     private DelegateCommand _startImageSearchCommand;
     private string _statusMessage;

@@ -6,9 +6,9 @@
                       xmlns:local="clr-namespace:BilderImport"
                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                       Title="Bild Importer"
-                      Width="1250"
+                      Width="1350"
                       Height="650"
-                      MinWidth="1250"
+                      MinWidth="1350"
                       MinHeight="650"
                       Cursor="{Binding Cursor}"
                       FontSize="18"
@@ -37,7 +37,19 @@
                   VerticalAlignment="Top"
                   FontSize="18"
                   ItemsSource="{Binding ExternalDrives}"
-                  SelectedItem="{Binding SelectedExternalDrive}" />
+                  SelectedItem="{Binding SelectedExternalDrive}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal">
+                <Label Padding="0" Content="{Binding VolumeLabel}" />
+                <Label Margin="5,0,0,0"
+                       Padding="0"
+                       Content="{Binding Name}"
+                       ContentStringFormat="{}({0})" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
       </Grid>
       <Separator VerticalAlignment="Bottom" />
       <Grid Grid.Row="1" ShowGridLines="False">
@@ -122,11 +134,34 @@
           <DataTemplate>
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
               <Grid.RowDefinitions>
-                <RowDefinition Height="40" />
+                <RowDefinition Height="45" />
                 <RowDefinition Height="250" />
                 <RowDefinition Height="40" />
               </Grid.RowDefinitions>
-              <CheckBox IsChecked="{Binding IsSelected}" />
+              <CheckBox IsChecked="{Binding IsSelected}">
+                <CheckBox.LayoutTransform>
+                  <ScaleTransform ScaleX="1.5" ScaleY="1.5" />
+                </CheckBox.LayoutTransform>
+              </CheckBox>
+              <StackPanel Margin="0,5,0,0"
+                          HorizontalAlignment="Center"
+                          Orientation="Horizontal">
+                <Button Width="35"
+                        Height="35"
+                        Command="{Binding Path=DataContext.RotateLeftCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                        CommandParameter="{Binding}"
+                        ToolTip="Nach Links drehen">
+                  <Image Source="/Images/undo.png" />
+                </Button>
+                <Button Width="35"
+                        Height="35"
+                        Margin="8,0,0,0"
+                        Command="{Binding Path=DataContext.RotateRightCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                        CommandParameter="{Binding}"
+                        ToolTip="Nach Rechts drehen">
+                  <Image Source="/Images/redo.png" />
+                </Button>
+              </StackPanel>
               <Image Grid.Row="1"
                      Width="250"
                      Source="{Binding BitmapImage}"
