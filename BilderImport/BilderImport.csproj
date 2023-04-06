@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Images\picture-2-multi-size.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,10 @@
     <None Remove="Images\import2.png" />
     <None Remove="Images\redo.png" />
     <None Remove="Images\undo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Images\picture-2-multi-size.ico" />
   </ItemGroup>
 
   <ItemGroup>
